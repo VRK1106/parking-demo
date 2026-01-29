@@ -297,8 +297,11 @@ def exit_vehicle():
             
             duration_sec = 0
             if entry_time:
-                entry_dt = datetime.datetime.fromisoformat(entry_time)
-                duration_sec = (datetime.datetime.now() - entry_dt).total_seconds()
+                try:
+                    entry_dt = datetime.datetime.fromisoformat(entry_time)
+                    duration_sec = (datetime.datetime.now() - entry_dt).total_seconds()
+                except:
+                    pass
             
             c.execute("UPDATE slots SET status = 'free', reg_num = NULL, entry_time = NULL, is_verified = 0 WHERE slot_id = ?", (slot_id,))
             conn.commit()
@@ -378,6 +381,11 @@ def process_verification():
             
             # 1. Correct Match
             if db_reg and db_reg == user_reg:
+                # SMART CORRECTION: 
+                # Check if this vehicle is currently blocking another slot (Misuse/Rejected)
+                # If so, clear that slot because we know the vehicle is HERE (Correct Slot)
+                c.execute("UPDATE slots SET status='free', reg_num=NULL, temp_reg_num=NULL, is_verified=0 WHERE temp_reg_num = ? AND status IN ('misuse', 'rejected')", (user_reg,))
+                
                 # If reserved, mark as occupied (Check-in)
                 if db_status == 'reserved':
                      c.execute("UPDATE slots SET status='occupied', is_verified=1 WHERE slot_id=?", (slot_id,))
@@ -464,7 +472,9 @@ def resolve_misuse():
 
             else: # reject
                 # Mark current slot as REJECTED so mobile can detect and show message
-                c.execute("UPDATE slots SET status = 'rejected', reg_num = ?, is_verified = 0 WHERE slot_id = ?", (reg_num, slot_id))
+                # Set entry_time to NOW so we can timeout after 10 mins
+                c.execute("UPDATE slots SET status = 'rejected', reg_num = ?, entry_time = ?, is_verified = 0 WHERE slot_id = ?", 
+                          (reg_num, datetime.datetime.now().isoformat(), slot_id))
                 msg = "Access Rejected - Vehicle must move to assigned slot"
                 
             conn.commit()
@@ -492,10 +502,38 @@ def get_sensors():
 def api_slots():
     """
     Returns full slot list for the frontend dashboard.
+    Runs maintenance cleanup before returning.
     """
     with sqlite3.connect(DB_NAME) as conn:
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
+
+        # AUTO-CLEAR LOGIC:
+        # If a slot has been 'rejected' for > 10 minutes, clear it.
+        # This acts as the fail-safe for drivers who left the premises vs moving to correct slot.
+        try:
+            # SQLite 'now' is in UTC usually, but our app uses local time isoformat.
+            # Safe way: Iterate and check in Python, or use SQLite datetime functions if format is consistent.
+            # Since we store as ISO strings, we'll fetch rejected slots and check in Python for safety.
+            c.execute("SELECT slot_id, entry_time FROM slots WHERE status = 'rejected'")
+            rejected_slots = c.fetchall()
+            
+            for r_slot in rejected_slots:
+                s_id = r_slot['slot_id']
+                e_time = r_slot['entry_time']
+                if e_time:
+                    try:
+                        dt_entry = datetime.datetime.fromisoformat(e_time)
+                        # Threshold: 10 Minutes
+                        if (datetime.datetime.now() - dt_entry).total_seconds() > 600:
+                            print(f"[Maintenance] Auto-clearing rejected slot {s_id} (Timeout > 10m)")
+                            c.execute("UPDATE slots SET status='free', reg_num=NULL, temp_reg_num=NULL, entry_time=NULL, is_verified=0 WHERE slot_id=?", (s_id,))
+                    except Exception as e:
+                        print(f"[Maintenance] Error checking time for {s_id}: {e}")
+            conn.commit()
+        except Exception as e:
+            print(f"[Maintenance] Failed: {e}")
+
         c.execute("SELECT * FROM slots ORDER BY slot_id")
         rows = c.fetchall()
         
