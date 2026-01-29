@@ -412,6 +412,11 @@
                         <div class="slot-id">{{ slot.slot_id }}</div>
                         {% if slot.reg_num %}
                         <div class="reg-num">{{ slot.reg_num }}</div>
+                        <button class="btn btn-sm btn-danger mt-2 py-0 px-2 border-0"
+                            style="font-size: 0.7rem; background: rgba(239, 68, 68, 0.2); color: #fca5a5;"
+                            onclick="forceCheckout(event, '{{ slot.reg_num }}')">
+                            Force Exit
+                        </button>
                         {% elif slot.temp_reg_num %}
                         <div class="reg-num text-warning">{{ slot.temp_reg_num }}</div>
                         {% else %}
@@ -453,6 +458,26 @@
                 localStorage.setItem('filterSize', value);
             }
             applyFilters();
+        }
+
+        async function forceCheckout(event, regNum) {
+            event.stopPropagation(); // Prevent card click
+            if (!confirm(`Force checkout for vehicle ${regNum}?`)) return;
+
+            try {
+                const res = await fetch('/exit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reg_num: regNum })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`Success: ${data.message} (Duration: ${data.duration_seconds}s)`);
+                    window.location.reload();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (e) { alert("Network Error"); }
         }
 
         document.addEventListener('DOMContentLoaded', applyFilters);
