@@ -656,18 +656,18 @@
                                     <div>
                                         <h5 class="m-0 fw-bold text-white">MISUSE DETECTED AT ${slot.slot_id}</h5>
                                         <div class="text-white-50 small">
-                                            Vehicle <strong>${slot.reg_num || 'Unknown'}</strong> is in the wrong slot.
+                                            Vehicle <strong>${slot.temp_reg_num || slot.reg_num || 'Unknown'}</strong> is in the wrong slot.
                                         </div>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <button class="btn btn-primary btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.reg_num}', 'accept')">
+                                    <button class="btn btn-primary btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'accept')">
                                         <i class="fas fa-check me-1"></i> Authorize Here
                                     </button>
-                                    <button class="btn btn-warning btn-sm fw-bold text-dark" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.reg_num}', 'reject')">
+                                    <button class="btn btn-warning btn-sm fw-bold text-dark" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'reject')">
                                         <i class="fas fa-times me-1"></i> Reject
                                     </button>
-                                    <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.reg_num}', 'resolved')">
+                                    <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'resolved')">
                                         <i class="fas fa-flag me-1"></i> Resolved (Free)
                                     </button>
                                 </div>
