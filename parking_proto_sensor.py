@@ -390,13 +390,33 @@ def process_verification():
                     "message": f"This slot is reserved for {db_reg}"
                 })
                 
-            # 3. Slot is Free (Unexpected if they are parking there)
+            # 3. Slot is Free 
             if db_status == 'free':
-                 # Maybe allow them to take it? 
-                 # For now, let's treat it as "Not assigned here" or Allow logic?
-                 # "earlier method" implies verifying an assignment.
-                 # Let's return error saying "No reservation found".
-                 return jsonify({"status": "error", "message": "No reservation found for this slot."})
+                 # Check if this car has a reservation ELSEWHERE
+                 c.execute("SELECT slot_id FROM slots WHERE reg_num = ?", (user_reg,))
+                 assigned_row = c.fetchone()
+                 
+                 if assigned_row:
+                     # IT IS MISUSE! (They have a slot but parked here)
+                     assigned_slot = assigned_row[0]
+                     
+                     # Update DB to show potential issues
+                     # We can mark this slot as 'misuse' temporarily too
+                     c.execute("UPDATE slots SET status='misuse', temp_reg_num=? WHERE slot_id=?", (user_reg, slot_id))
+                     conn.commit()
+                     
+                     return jsonify({
+                        "status": "misuse", 
+                        "assigned_slot": assigned_slot,
+                        "message": f"You are assigned to {assigned_slot}"
+                     })
+                 else:
+                     # No reservation elsewhere -> Allow "Walk-in" Parking?
+                     # Ideally yes, let's Verify/Occupy this slot for them.
+                     c.execute("UPDATE slots SET status='occupied', reg_num=?, is_verified=1, entry_time=? WHERE slot_id=?", 
+                               (user_reg, datetime.datetime.now().isoformat(), slot_id))
+                     conn.commit()
+                     return jsonify({"status": "verified"})
                  
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -470,9 +490,8 @@ def api_slots():
         rows = c.fetchall()
         
         # Convert to list of dicts
-        slots = [dict(row) for row in rows]
-        
-    return jsonify(slots)
+        result = [dict(row) for row in rows]
+        return jsonify(result)
 
 @app.route('/api/slot_status/<slot_id>', methods=['GET'])
 def get_slot_status(slot_id):
