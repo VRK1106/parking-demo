@@ -53,10 +53,22 @@ def sync_all_slots():
     """
     statuses = {}
     print("[Sensor] Syncing all slots from external API...")
-    for i in range(1, 11):
-        slot_id = f"Slot{i}"
-        status = get_slot_status(slot_id)
-        statuses[slot_id] = status
-        print(f"  > {slot_id}: {status}")
-        time.sleep(0.5)
+    
+    # Fail fast optimization
+    try:
+        # Check Slot 1 first to see if API is alive
+        if get_slot_status("Slot1") == "error":
+            print("[Sensor] External API appears down. Skipping sync.")
+            return statuses
+            
+        for i in range(1, 11):
+            slot_id = f"Slot{i}"
+            status = get_slot_status(slot_id)
+            statuses[slot_id] = status
+            print(f"  > {slot_id}: {status}")
+            # time.sleep(0.5) # Removed delay for speed
+            
+    except Exception as e:
+        print(f"[Sensor] Sync aborted: {e}")
+        
     return statuses
