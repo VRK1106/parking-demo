@@ -419,6 +419,11 @@
                         </button>
                         {% elif slot.temp_reg_num %}
                         <div class="reg-num text-warning">{{ slot.temp_reg_num }}</div>
+                        <button class="btn btn-sm btn-danger mt-2 py-0 px-2 border-0"
+                            style="font-size: 0.7rem; background: rgba(239, 68, 68, 0.2); color: #fca5a5;"
+                            onclick="forceCheckout(event, '{{ slot.temp_reg_num }}')">
+                            Force Exit
+                        </button>
                         {% else %}
                         <div class="small text-muted opacity-50">{{ slot.size_type|capitalize }}</div>
                         {% endif %}
