@@ -655,14 +655,16 @@
                             title = `⛔ ACCESS DENIED AT ${slot.slot_id}`;
                             desc = `Vehicle <strong>${slot.temp_reg_num || slot.reg_num || 'Unknown'}</strong> has been rejected. Waiting for departure.`;
                             style = 'background: rgba(60, 20, 20, 0.95); border: 1px solid rgba(255, 0, 0, 0.3); color: #feb2b2;';
-                            // Only show Resolve button with Sensor Check
+                            // Automated check - just show status
                             buttons = `
-                                <button class="btn btn-info btn-sm fw-bold text-dark" onclick="checkSensorAndResolve('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}')">
-                                    <i class="fas fa-search me-1"></i> Check Departure
-                                </button>
-                                <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'resolved')">
-                                    <i class="fas fa-flag me-1"></i> Force Clear
-                                </button>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-dark border border-secondary text-white-50">
+                                        <i class="fas fa-satellite-dish me-1"></i> Auto-Verifying Departure...
+                                    </span>
+                                    <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'resolved')">
+                                        <i class="fas fa-flag me-1"></i> Force Clear
+                                    </button>
+                                </div>
                             `;
                         } else {
                             // Standard Misuse
@@ -755,8 +757,42 @@
             } catch (e) { showToast('Error', 'Sensor API Unreachable', 'error'); }
         }
 
-        // Update stats every 1 second for immediate alerts
+        async function pollRejectedSlots() {
+            try {
+                // Get all slots marked as 'rejected' from the DOM (easiest way to know current state)
+                const rejectedElements = document.querySelectorAll('.misuse-alert-item[style*="rgba(60, 20, 20"]');
+
+                if (rejectedElements.length === 0) return;
+
+                console.log(`[Auto-Check] Verifying ${rejectedElements.length} rejected slots...`);
+
+                rejectedElements.forEach(async (el) => {
+                    const slotId = el.getAttribute('data-slot-id');
+                    try {
+                        const res = await fetch(`/api/sensor/${slotId}`);
+                        const data = await res.json();
+
+                        if (data.sensor_status === 'available') {
+                            console.log(`[Auto-Check] ${slotId} is FREE. Auto-resolving.`);
+                            // Get reg num from text strictly for the API call (though it's filtered out anyway)
+                            // We trigger the resolve action automatically
+                            // We can extract reg from the DOM or just pass 'Unknown' as it's leaving anyway
+                            resolveMisuseAction(slotId, 'Unknown', 'resolved');
+                            showToast('Departure Confirmed', `${slotId} is now free.`, 'success');
+                        }
+                    } catch (e) {
+                        // Silent fail on network error to avoid spamming user
+                        console.warn(`[Auto-Check] Failed for ${slotId}`);
+                    }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        // Update stats every 1 second
         setInterval(updateUtilization, 1000);
+
+        // Auto-check rejected slots every 5 seconds
+        setInterval(pollRejectedSlots, 5000);
 
     </script>
 
