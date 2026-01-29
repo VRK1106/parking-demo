@@ -596,6 +596,21 @@ if __name__ == '__main__':
     # Pre-warm camera system (Runs in separate thread)
     camera_system = SharedCamera()
     
+    # 4. START KEEP-ALIVE (Prevent Render Cold Start)
+    def keep_alive():
+        target = "https://parking-demo-uepk.onrender.com"
+        print(f"[KeepAlive] Starting pinger for {target}")
+        import requests 
+        while True:
+            try:
+                requests.get(target)
+                # print("[KeepAlive] Ping sent.") # Optional verbose log
+            except:
+                pass
+            time.sleep(600) # Ping every 10 mins (Render sleeps after 15)
+            
+    threading.Thread(target=keep_alive, daemon=True).start()
+
     # 5. Start Server
     # Threaded=True allow for concurrent requests (video feed + api)
     # use_reloader=False prevents the app from starting twice in debug mode

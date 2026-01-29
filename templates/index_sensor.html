@@ -638,7 +638,7 @@
                     return; // Don't update the misuse alerts while user is interacting
                 }
 
-                const misuseSlots = slots.filter(s => s.status === 'misuse' || s.status === 'rejected');
+                const misuseSlots = slots.filter(s => s.status === 'misuse');
                 const container = document.getElementById('misuseAlertContainer');
 
                 if (misuseSlots.length > 0) {
