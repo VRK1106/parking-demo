@@ -380,6 +380,10 @@ def process_verification():
                 assigned_row = c.fetchone()
                 assigned_slot = assigned_row[0] if assigned_row else "NONE"
                 
+                # CRITICAL: Update DB so Admin Dashboard sees it!
+                c.execute("UPDATE slots SET status='misuse', temp_reg_num=? WHERE slot_id=?", (user_reg, slot_id))
+                conn.commit()
+                
                 return jsonify({
                     "status": "misuse", 
                     "assigned_slot": assigned_slot,
