@@ -30,7 +30,11 @@ DB_NAME = "parking.db"
 # --- DEPLOYMENT CONTEXT ---
 IS_RENDER = os.environ.get('RENDER', 'false').lower() == 'true'
 if IS_RENDER:
-    print("Context: RUNNING ON RENDER CLOUD")
+    # On Render, ensure DB exists immediately because Gunicorn bypasses __name__ == "__main__"
+    print("Context: RUNNING ON RENDER CLOUD - Pre-initializing DB")
+    # We define init_db below, but we need to run it.
+    # Since Python executes top-to-bottom, we can't call it here yet if it's defined lower.
+    # So we will move init_db definition UP or just call it after definition.
 else:
     print("Context: RUNNING LOCALLY")
 
@@ -178,6 +182,14 @@ def init_db():
 
             c.executemany("INSERT INTO slots (slot_id, size_type) VALUES (?, ?)", slots_data)
             print("Initialized 10 Slots (Slot1 - Slot10).")
+
+# If on Render, initialize DB immediately when this module is imported by Gunicorn
+if IS_RENDER:
+    try:
+        init_db()
+        print("Render DB Initialization Complete.")
+    except Exception as e:
+        print(f"Render DB Init Failed: {e}")
 
 
 
