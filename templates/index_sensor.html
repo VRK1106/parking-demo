@@ -638,15 +638,51 @@
                     return; // Don't update the misuse alerts while user is interacting
                 }
 
-                const misuseSlots = slots.filter(s => s.status === 'misuse');
+                const misuseSlots = slots.filter(s => s.status === 'misuse' || s.status === 'rejected');
                 const container = document.getElementById('misuseAlertContainer');
 
                 if (misuseSlots.length > 0) {
                     container.innerHTML = ''; // Clear previous
                     misuseSlots.forEach(slot => {
+                        let alertType = 'misuse'; // Default
+                        let title = `MISUSE DETECTED AT ${slot.slot_id}`;
+                        let desc = `Vehicle <strong>${slot.temp_reg_num || slot.reg_num || 'Unknown'}</strong> is in the wrong slot.`;
+                        let buttons = '';
+                        let style = '';
+
+                        if (slot.status === 'rejected') {
+                            alertType = 'rejected';
+                            title = `⛔ ACCESS DENIED AT ${slot.slot_id}`;
+                            desc = `Vehicle <strong>${slot.temp_reg_num || slot.reg_num || 'Unknown'}</strong> has been rejected. Waiting for departure.`;
+                            style = 'background: rgba(60, 20, 20, 0.95); border: 1px solid rgba(255, 0, 0, 0.3); color: #feb2b2;';
+                            // Only show Resolve button with Sensor Check
+                            buttons = `
+                                <button class="btn btn-info btn-sm fw-bold text-dark" onclick="checkSensorAndResolve('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}')">
+                                    <i class="fas fa-search me-1"></i> Check Departure
+                                </button>
+                                <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'resolved')">
+                                    <i class="fas fa-flag me-1"></i> Force Clear
+                                </button>
+                            `;
+                        } else {
+                            // Standard Misuse
+                            style = 'background: rgba(40, 10, 10, 0.95); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5;';
+                            buttons = `
+                                <button class="btn btn-primary btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'accept')">
+                                    <i class="fas fa-check me-1"></i> Authorize Here
+                                </button>
+                                <button class="btn btn-warning btn-sm fw-bold text-dark" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'reject')">
+                                    <i class="fas fa-times me-1"></i> Reject
+                                </button>
+                                <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'resolved')">
+                                    <i class="fas fa-flag me-1"></i> Resolved (Free)
+                                </button>
+                            `;
+                        }
+
                         const alertHtml = `
                         <div class="alert alert-danger misuse-alert-item animate__animated animate__fadeInDown mb-3 shadow-lg" 
-                             style="background: rgba(40, 10, 10, 0.95); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5;"
+                             style="${style}"
                              data-slot-id="${slot.slot_id}">
                             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                                 <div class="d-flex align-items-center gap-3">
@@ -654,22 +690,14 @@
                                         <i class="fas fa-radiation fs-4 text-danger"></i>
                                     </div>
                                     <div>
-                                        <h5 class="m-0 fw-bold text-white">MISUSE DETECTED AT ${slot.slot_id}</h5>
+                                        <h5 class="m-0 fw-bold text-white">${title}</h5>
                                         <div class="text-white-50 small">
-                                            Vehicle <strong>${slot.temp_reg_num || slot.reg_num || 'Unknown'}</strong> is in the wrong slot.
+                                            ${desc}
                                         </div>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <button class="btn btn-primary btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'accept')">
-                                        <i class="fas fa-check me-1"></i> Authorize Here
-                                    </button>
-                                    <button class="btn btn-warning btn-sm fw-bold text-dark" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'reject')">
-                                        <i class="fas fa-times me-1"></i> Reject
-                                    </button>
-                                    <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.temp_reg_num || slot.reg_num}', 'resolved')">
-                                        <i class="fas fa-flag me-1"></i> Resolved (Free)
-                                    </button>
+                                    ${buttons}
                                 </div>
                             </div>
                         </div>`;
@@ -706,6 +734,25 @@
                     showToast('Error', data.error, 'error');
                 }
             } catch (e) { showToast('Error', 'Network Error', 'error'); }
+        }
+
+        async function checkSensorAndResolve(slotId, regNum) {
+            showToast('Checking Sensor...', `Pinging external sensor for ${slotId}`, 'warn');
+            try {
+                const res = await fetch(`/api/sensor/${slotId}`);
+                const data = await res.json();
+
+                if (data.sensor_status === 'available') {
+                    // Confirmed Empty!
+                    if (confirm(`Sensor reports ${slotId} is FREE! Clear the alert?`)) {
+                        resolveMisuseAction(slotId, regNum, 'resolved');
+                    }
+                } else if (data.sensor_status === 'unavailable') {
+                    showToast('Still Occupied', `Sensor reports vehicle is still present.`, 'error');
+                } else {
+                    showToast('Sensor Error', `Could not read sensor: ${data.sensor_status}`, 'error');
+                }
+            } catch (e) { showToast('Error', 'Sensor API Unreachable', 'error'); }
         }
 
         // Update stats every 1 second for immediate alerts
