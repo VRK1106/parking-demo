@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking Access</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <style>
+        :root {
+            --bg-color: #0f1218;
+            --card-bg: #1a1f2b;
+            --input-bg: #232936;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --accent-entry: #10b981;
+            /* Green */
+            --accent-exit: #ef4444;
+            /* Red */
+            --accent-blue: #3b82f6;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .navbar-custom {
+            background: rgba(15, 18, 24, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        /* Cards */
+        .gate-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            height: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gate-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .gate-card.entry-mode::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--accent-entry);
+        }
+
+        .gate-card.exit-mode::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--accent-exit);
+        }
+
+        /* Camera Feed */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .camera-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .live-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Form Elements */
+        .form-label-custom {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-control-custom,
+        .form-select-custom {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            width: 100%;
+        }
+
+        .form-control-custom:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Buttons */
+        .btn-action {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 600;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+            margin-top: 1rem;
+        }
+
+        .btn-entry {
+            background: var(--accent-entry);
+            color: #000;
+        }
+
+        .btn-entry:hover {
+            background: #059669;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .btn-exit {
+            background: var(--accent-exit);
+            color: white;
+        }
+
+        .btn-exit:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .btn-scan {
+            background: #2d3748;
+            color: white;
+            border: 1px solid var(--border-color);
+            padding: 0.8rem;
+            border-radius: 12px;
+        }
+
+        .btn-scan:hover {
+            background: #4a5568;
+        }
+
+        /* Dashboard Link */
+        .dashboard-banner {
+            background: radial-gradient(circle at center, #2d3748 0%, #1a1f2b 100%);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            text-align: center;
+            margin-top: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-banner:hover {
+            border-color: var(--accent-blue);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast-custom {
+            background: #1e293b;
+            color: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid var(--accent-blue);
+            min-width: 300px;
+        }
+
+        .toggle-feed-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(4px);
+        }
+
+        .feed-off-overlay {
+            position: absolute;
+            inset: 0;
+            background: #1a1f2b;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar-custom">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <div
+                    style="width: 40px; height: 40px; background: var(--accent-blue); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-parking text-white fs-4"></i>
+                </div>
+                <div>
+                    <h5 class="m-0 fw-bold">Smart Parking</h5>
+                    <small class="text-secondary">Agent Control Panel</small>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <a href="/dashboard" class="btn btn-outline-light btn-sm px-3 py-2">
+                    <i class="fas fa-th-large me-2"></i>Dashboard
+                </a>
+                <button class="btn btn-outline-danger btn-sm px-3 py-2" onclick="resetAll()">
+                    <i class="fas fa-trash-alt me-2"></i>Release All Slots
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4 flex-grow-1">
+
+        <!-- Global Alert for Misuse (Dynamic Actionable) -->
+        <div id="misuseAlertContainer"></div>
+
+        <div class="row g-4 justify-content-center">
+
+            <!-- Utilization Stats Card -->
+            <div class="col-lg-10 mb-2 animate__animated animate__fadeInDown">
+                <div class="gate-card p-4 d-flex align-items-center justify-content-between"
+                    style="background: linear-gradient(145deg, rgba(26,31,43,0.9), rgba(15,18,24,0.9));">
+                    <div>
+                        <h4 class="fw-bold mb-1 text-white">Live Utilization</h4>
+                        <p class="text-secondary mb-0 small">Real-time parking lot occupancy</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="text-end">
+                            <h2 class="fw-bold m-0 text-white" id="utilizationText">{{ utilization }}%</h2>
+                        </div>
+                        <div
+                            style="width: 150px; height: 10px; background: #333; border-radius: 5px; overflow: hidden;">
+                            <div id="utilizationBar"
+                                style="width: {{ utilization }}%; height: 100%; background: var(--accent-entry); transition: width 0.5s ease;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ENTRY GATE CARD -->
+            <div class="col-lg-5">
+                <div class="gate-card entry-mode animate__animated animate__fadeInLeft">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="m-0"><i class="fas fa-sign-in-alt me-2 text-success"></i>Entry Gate</h4>
+                        <span class="badge bg-success bg-opacity-25 text-success">Arrivals</span>
+                    </div>
+
+                    <!-- Camera -->
+                    <div class="camera-container" id="entryFeedWrap">
+                        <img src="{{ url_for('video_feed') }}" alt="Entry Feed" style="display: none;">
+                        <div class="live-badge" style="display: none;">
+                            <div class="live-dot"></div> LIVE
+                        </div>
+                        <button class="toggle-feed-btn" data-state="paused" onclick="toggleFeed('entry')"><i
+                                class="fas fa-play me-1"></i><span>Resume Feed</span></button>
+                        <div class="feed-off-overlay" style="display: flex;">
+                            <i class="fas fa-video-slash fs-1 mb-3"></i>
+                            <h5 class="mb-3">Feed Paused</h5>
+                            <button class="btn btn-outline-light btn-sm rounded-pill px-4"
+                                onclick="toggleFeed('entry')">
+                                <i class="fas fa-play me-2"></i>Resume Feed
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inputs -->
+                    <div class="row g-3">
+                        <div class="col-7">
+                            <label class="form-label-custom">Registration Number</label>
+                            <input type="text" id="entryReg" class="form-control-custom font-monospace"
+                                placeholder="MH 12 AB 1234">
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label-custom">Size</label>
+                            <select id="entrySize" class="form-select-custom">
+                                <option value="medium">Default (Car)</option>
+                                <option value="small">Small (Bike)</option>
+                                <option value="large">Large (SUV)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <button class="btn btn-scan w-100" onclick="scanPlate('entry')">
+                                <i class="fas fa-camera me-2"></i> Auto-Detect Plate
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-action btn-entry" onclick="processEntry()">
+                        <span>AUTHORIZE ENTRY</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- EXIT GATE CARD -->
+            <div class="col-lg-5">
+                <div class="gate-card exit-mode animate__animated animate__fadeInRight">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="m-0"><i class="fas fa-sign-out-alt me-2 text-danger"></i>Exit Gate</h4>
+                        <span class="badge bg-danger bg-opacity-25 text-danger">Departures</span>
+                    </div>
+
+                    <!-- Camera -->
+                    <div class="camera-container" id="exitFeedWrap">
+                        <img src="{{ url_for('video_feed') }}" alt="Exit Feed" style="display: none;">
+                        <div class="live-badge" style="display: none;">
+                            <div class="live-dot"></div> LIVE
+                        </div>
+                        <button class="toggle-feed-btn" data-state="paused" onclick="toggleFeed('exit')"><i
+                                class="fas fa-play me-1"></i><span>Resume Feed</span></button>
+                        <div class="feed-off-overlay" style="display: flex;">
+                            <i class="fas fa-video-slash fs-1 mb-3"></i>
+                            <h5 class="mb-3">Feed Paused</h5>
+                            <button class="btn btn-outline-light btn-sm rounded-pill px-4" onclick="toggleFeed('exit')">
+                                <i class="fas fa-play me-2"></i>Resume Feed
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inputs (Mirrors Entry Layout for consistency) -->
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label-custom">Registration Number</label>
+                            <input type="text" id="exitReg" class="form-control-custom font-monospace"
+                                placeholder="Search Reg...">
+                        </div>
+                        <!-- Spacer to match Entry height -->
+                        <div class="col-12">
+                            <button class="btn btn-scan w-100" onclick="scanPlate('exit')">
+                                <i class="fas fa-camera me-2"></i> Auto-Detect Plate
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-action btn-exit" onclick="processExit()">
+                        <span>PROCESS CHECKOUT</span>
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Dashboard Link -->
+
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container">
+        <div id="toast" class="toast-custom">
+            <div id="toastIcon" class="fs-4">✅</div>
+            <div>
+                <strong class="d-block" id="toastTitle">Success</strong>
+                <span class="small text-muted" id="toastMsg">Action completed.</span>
+            </div>
+            <button class="btn-close btn-close-white ms-auto" onclick="hideToast()"></button>
+        </div>
+    </div>
+
+    <script>
+        // --- LOGIC ---
+
+        // Track if user is hovering over misuse alert to pause polling updates
+        let isHoveringMisuseAlert = false;
+
+        // Setup hover detection for misuse alert container
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('misuseAlertContainer');
+            container.addEventListener('mouseenter', () => {
+                isHoveringMisuseAlert = true;
+                console.log('[Polling] Paused - User hovering over misuse alert');
+            });
+            container.addEventListener('mouseleave', () => {
+                isHoveringMisuseAlert = false;
+                console.log('[Polling] Resumed - User left misuse alert area');
+            });
+        });
+
+        function toggleFeed(gate) {
+            const wrap = document.getElementById(gate + 'FeedWrap');
+            const overlay = wrap.querySelector('.feed-off-overlay');
+            const img = wrap.querySelector('img');
+            const toggleButton = wrap.querySelector('.toggle-feed-btn');
+            const icon = toggleButton.querySelector('i');
+            const textSpan = toggleButton.querySelector('span');
+            const liveBadge = wrap.querySelector('.live-badge');
+
+            if (toggleButton.dataset.state === 'active') { // Currently active, so pause it
+                toggleButton.dataset.state = 'paused';
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+                textSpan.textContent = ' Resume Feed';
+                overlay.style.display = 'flex';
+                img.style.display = 'none';
+                if (liveBadge) liveBadge.style.display = 'none';
+            } else { // Currently paused, so activate it
+                toggleButton.dataset.state = 'active';
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-pause');
+                textSpan.textContent = ' Pause Feed';
+                overlay.style.display = 'none';
+                img.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
+                img.style.display = 'block';
+                if (liveBadge) liveBadge.style.display = 'block';
+            }
+        }
+
+        let toastTimer;
+        function showToast(title, msg, type = 'success') {
+            const t = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const tTitle = document.getElementById('toastTitle');
+            const tMsg = document.getElementById('toastMsg');
+
+            if (toastTimer) clearTimeout(toastTimer);
+
+            tTitle.innerText = title;
+            tMsg.innerText = msg;
+
+            if (type === 'success') {
+                t.style.borderLeftColor = 'var(--accent-entry)';
+                icon.innerText = '✅';
+            } else if (type === 'error') {
+                t.style.borderLeftColor = 'var(--accent-exit)';
+                icon.innerText = '❌';
+            } else {
+                t.style.borderLeftColor = '#f59e0b';
+                icon.innerText = '⚠️';
+            }
+
+            // Remove any previous animation classes before adding new ones
+            t.classList.remove('animate__fadeInRight', 'animate__fadeOutRight');
+
+            t.style.display = 'flex';
+            t.classList.add('animate__animated', 'animate__fadeInRight');
+
+            toastTimer = setTimeout(hideToast, 2000);
+        }
+
+        function hideToast() {
+            const t = document.getElementById('toast');
+            t.classList.remove('animate__fadeInRight'); // Ensure fade-in is removed
+            t.classList.add('animate__fadeOutRight');
+
+            t.addEventListener('animationend', () => {
+                t.style.display = 'none';
+                t.classList.remove('animate__animated', 'animate__fadeOutRight');
+            }, { once: true }); // Ensure the event listener is removed after first execution
+        }
+
+        async function processEntry() {
+            const reg = document.getElementById('entryReg').value.toUpperCase();
+            const size = document.getElementById('entrySize').value;
+
+            if (!reg) return showToast('Input Required', 'Please enter Registration Number', 'warn');
+
+            try {
+                const res = await fetch('/entry', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reg_num: reg, vehicle_size: size })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('Entry Approved', `Slot ${data.assigned_slot} Assigned`, 'success');
+                    document.getElementById('entryReg').value = '';
+                } else {
+                    showToast('Entry Denied', data.error, 'error');
+                }
+            } catch (e) { showToast('Error', e.message, 'error'); }
+        }
+
+        async function processExit() {
+            const reg = document.getElementById('exitReg').value.toUpperCase();
+            if (!reg) return showToast('Input Required', 'Please enter Registration Number', 'warn');
+
+            try {
+                const res = await fetch('/exit', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reg_num: reg })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('Checkout Complete', `Duration: ${data.duration_seconds}s`, 'success');
+                    document.getElementById('exitReg').value = '';
+                } else {
+                    showToast('Error', data.error, 'error');
+                }
+            } catch (e) { showToast('Error', e.message, 'error'); }
+        }
+
+        async function scanPlate(gate) {
+            showToast('Scanning', 'Detecting License Plate...', 'warn');
+            try {
+                // Determine target input
+                const targetId = gate === 'entry' ? 'entryReg' : 'exitReg';
+                const res = await fetch('/anpr', { method: 'POST' });
+                const data = await res.json();
+
+                if (res.ok && data.reg_num) {
+                    document.getElementById(targetId).value = data.reg_num;
+                    showToast('ANPR Success', `Detected: ${data.reg_num}`, 'success');
+                } else {
+                    showToast('Reading Failed', 'Please try again or enter manually.', 'error');
+                }
+            } catch (e) { showToast('System Error', 'Camera/Server unreachable', 'error'); }
+        }
+
+        async function resetAll() {
+            if (!confirm("Are you sure you want to release ALL slots?\nThis cannot be undone.")) return;
+            try {
+                const res = await fetch('/reset', { method: 'POST' });
+                if (res.ok) showToast('System Reset', 'All slots have been completely released.', 'success');
+                else showToast('Error', 'Reset failed', 'error');
+            } catch (e) { showToast('Error', e.message, 'error'); }
+        }
+
+        async function updateUtilization() {
+            try {
+                const res = await fetch('/api/slots');
+                const slots = await res.json();
+                const total = slots.length;
+                // Count Occupied AND Reserved as usage
+                const active = slots.filter(s => s.status === 'occupied' || s.status === 'reserved').length;
+                const percent = total > 0 ? ((active / total) * 100).toFixed(1) : 0;
+
+                document.getElementById('utilizationText').innerText = percent + '%';
+                const bar = document.getElementById('utilizationBar');
+                bar.style.width = percent + '%';
+
+                // Color Logic
+                if (percent > 85) bar.style.background = 'var(--accent-exit)';
+                else if (percent > 50) bar.style.background = '#f59e0b'; // Warn
+                else bar.style.background = 'var(--accent-entry)';
+
+
+                // --- MISUSE CHECK ---
+                // Skip updating alerts if user is hovering over them (to prevent flickering while deciding)
+                if (isHoveringMisuseAlert) {
+                    return; // Don't update the misuse alerts while user is interacting
+                }
+
+                const misuseSlots = slots.filter(s => s.status === 'misuse' || s.status === 'rejected');
+                const container = document.getElementById('misuseAlertContainer');
+
+                if (misuseSlots.length > 0) {
+                    container.innerHTML = ''; // Clear previous
+                    misuseSlots.forEach(slot => {
+                        const alertHtml = `
+                        <div class="alert alert-danger misuse-alert-item animate__animated animate__fadeInDown mb-3 shadow-lg" 
+                             style="background: rgba(40, 10, 10, 0.95); border: 1px solid rgba(220, 38, 38, 0.5); color: #fca5a5;"
+                             data-slot-id="${slot.slot_id}">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-danger bg-opacity-25 p-2 rounded-circle">
+                                        <i class="fas fa-radiation fs-4 text-danger"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="m-0 fw-bold text-white">MISUSE DETECTED AT ${slot.slot_id}</h5>
+                                        <div class="text-white-50 small">
+                                            Vehicle <strong>${slot.reg_num || 'Unknown'}</strong> is in the wrong slot.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.reg_num}', 'accept')">
+                                        <i class="fas fa-check me-1"></i> Authorize Here
+                                    </button>
+                                    <button class="btn btn-warning btn-sm fw-bold text-dark" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.reg_num}', 'reject')">
+                                        <i class="fas fa-times me-1"></i> Reject
+                                    </button>
+                                    <button class="btn btn-success btn-sm fw-bold" onclick="resolveMisuseAction('${slot.slot_id}', '${slot.reg_num}', 'resolved')">
+                                        <i class="fas fa-flag me-1"></i> Resolved (Free)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                        container.insertAdjacentHTML('beforeend', alertHtml);
+                    });
+                } else {
+                    container.innerHTML = '';
+                }
+
+            } catch (e) { console.error(e); }
+        }
+
+        async function resolveMisuseAction(slotId, regNum, decision) {
+            if (!confirm(`Confirm action: ${decision.toUpperCase()} for ${slotId}?`)) return;
+
+            try {
+                const res = await fetch('/resolve_misuse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slot_id: slotId,
+                        reg_num: regNum,
+                        decision: decision
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Immediately clear the alert container for instant feedback
+                    document.getElementById('misuseAlertContainer').innerHTML = '';
+                    showToast('Action Success', data.message, 'success');
+                    // Force immediate refresh to sync state (mobile will pick this up via polling)
+                    updateUtilization();
+                } else {
+                    showToast('Error', data.error, 'error');
+                }
+            } catch (e) { showToast('Error', 'Network Error', 'error'); }
+        }
+
+        // Update stats every 1 second for immediate alerts
+        setInterval(updateUtilization, 1000);
+
+    </script>
+
+</body>
+
+</html>

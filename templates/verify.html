@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Verify Slot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f1218;
+            --card-bg: #1a1f2b;
+            --input-bg: #232936;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .verify-card {
+            background: rgba(26, 31, 43, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slot-badge {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            padding: 8px 16px;
+            border-radius: 12px;
+            display: inline-block;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-control-custom {
+            background: var(--input-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 1rem;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            text-align: center;
+            letter-spacing: 2px;
+            font-weight: 600;
+            text-transform: uppercase;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .form-control-custom:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: #2a3241;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-verify {
+            background: var(--accent-green);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            width: 100%;
+            transition: transform 0.1s;
+        }
+
+        .btn-verify:active {
+            transform: scale(0.98);
+        }
+
+        /* Status States */
+        .status-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Misuse Modal / State */
+        .misuse-alert {
+            display: none;
+            text-align: center;
+        }
+
+        .btn-option {
+            padding: 0.8rem;
+            border-radius: 12px;
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 0.8rem;
+        }
+
+        .btn-accept {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+        }
+
+        .btn-reject {
+            background: transparent;
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="verify-card" id="mainCard">
+        <div class="text-center">
+            <div class="slot-badge">SLOT: {{ slot_id }}</div>
+
+            <h3 class="fw-bold mb-4">Verify Vehicle</h3>
+
+            <form id="verifyForm">
+                <input type="hidden" id="slotId" value="{{ slot_id }}">
+                <div class="mb-2">
+                    <input type="text" class="form-control-custom" id="reg_num" placeholder="ENTER REG NO"
+                        autocomplete="off" required>
+                </div>
+                <button type="submit" class="btn-verify">
+                    VERIFY NOW <i class="fas fa-check-circle ms-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success State -->
+    <div class="verify-card text-center" id="successCard" style="display: none;">
+        <div class="status-icon text-success">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h3 class="fw-bold text-white mb-2">Verified!</h3>
+        <p class="text-secondary">Vehicle confirmed at Slot {{ slot_id }}</p>
+        <button class="btn btn-outline-light btn-sm rounded-pill mt-3" onclick="window.close()">Close Window</button>
+    </div>
+
+    <!-- Misuse State -->
+    <div class="verify-card" id="misuseCard" style="display: none;">
+        <div class="text-center">
+            <div class="status-icon text-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h4 class="fw-bold text-white mb-2">Misuse Detected</h4>
+            <p class="text-secondary small mb-4">
+                Vehicle <span class="text-white fw-bold" id="misuseReg">--</span> is assigned to
+                <span class="text-white fw-bold" id="assignedSlot">--</span> but was found here.
+            </p>
+
+            <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger small fw-bold">
+                <i class="fas fa-hand-paper me-2"></i> ACTION REQUIRED AT CONTROL CENTER
+            </div>
+
+            <p class="text-secondary small">
+                Please move vehicle to the assigned slot or wait for Admin authorization.
+            </p>
+
+            <button class="btn btn-outline-secondary w-100 py-2 rounded-3 fw-bold mt-2" onclick="window.close()">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Rejected State (Admin Rejected) -->
+    <div class="verify-card text-center" id="rejectedCard" style="display: none;">
+        <div class="status-icon text-danger">
+            <i class="fas fa-times-circle"></i>
+        </div>
+        <h3 class="fw-bold text-white mb-2">Access Denied</h3>
+        <p class="text-secondary">Admin has rejected authorization for this location.</p>
+        <p class="text-warning small"><i class="fas fa-exclamation-triangle me-1"></i>Please move vehicle to assigned
+            slot.</p>
+        <button class="btn btn-outline-light btn-sm rounded-pill mt-3" onclick="window.close()">Close Window</button>
+    </div>
+
+    <!-- Resolved State (Slot Freed) -->
+    <div class="verify-card text-center" id="resolvedCard" style="display: none;">
+        <div class="status-icon text-info">
+            <i class="fas fa-info-circle"></i>
+        </div>
+        <h3 class="fw-bold text-white mb-2">Process Updated</h3>
+        <p class="text-secondary">Admin has resolved this issue. The slot has been freed.</p>
+        <button class="btn btn-outline-light btn-sm rounded-pill mt-3" onclick="window.close()">Close Window</button>
+    </div>
+
+    <script>
+        function attemptClose() {
+            // Attempt to close the window using multiple methods
+            setTimeout(() => {
+                // Method 1: Standard Close
+                window.close();
+
+                // Method 2: Hack for some browsers
+                window.open('', '_self', '');
+                window.close();
+
+                // Method 3: Fallback - Redirect to a blank page so they are "out" of the system
+                // This guarantees they don't stay on our site if close fails.
+                setTimeout(() => {
+                    window.location.href = "about:blank";
+                }, 500);
+            }, 2000);
+        }
+
+        const slotId = document.getElementById('slotId').value;
+        const form = document.getElementById('verifyForm');
+        let currentReg = '';
+        let pollingInterval = null;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+            btn.disabled = true;
+
+            currentReg = document.getElementById('reg_num').value.toUpperCase();
+
+            const formData = new FormData();
+            formData.append('reg_num', currentReg);
+            formData.append('slot_id', slotId);
+
+            try {
+                const res = await fetch('/process_verification', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.status === 'verified') {
+                    showCard('successCard');
+                    attemptClose(); // Auto-Close on Success
+                } else if (data.status === 'misuse') {
+                    document.getElementById('misuseReg').innerText = currentReg;
+                    document.getElementById('assignedSlot').innerText = data.assigned_slot;
+                    showCard('misuseCard');
+                    startPollingForAdminDecision(); // START POLLING
+                } else {
+                    alert(data.message || 'Verification Failed');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                alert("Server Error");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        function startPollingForAdminDecision() {
+            // Clear any existing polling
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+
+            console.log('[Mobile] Started polling for admin decision...');
+
+            pollingInterval = setInterval(async () => {
+                // Stop polling if misuse card is hidden (already resolved)
+                if (document.getElementById('misuseCard').style.display === 'none') {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/slot_status/${slotId}`);
+                    const data = await res.json();
+
+                    console.log('[Mobile] Poll response:', data);
+
+                    // Case 1: Admin Authorized (Status -> occupied, Reg -> Matches current user)
+                    if (data.status === 'occupied' && data.reg_num === currentReg) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        showCard('successCard');
+                        document.querySelector('#successCard h3').innerText = "Authorized!";
+                        document.querySelector('#successCard p').innerText = "Admin approved this location.";
+                        attemptClose();
+                    }
+
+                    // Case 2: Slot is now free (Admin clicked "Resolved/Free")
+                    else if (data.status === 'free') {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        showCard('resolvedCard');
+                        attemptClose();
+                    }
+
+                    // Case 3: Admin Rejected (Status -> rejected)
+                    else if (data.status === 'rejected') {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        showCard('rejectedCard');
+                        attemptClose();
+                    }
+
+                    // Case 4: Status changed to something other than misuse/occupied/free/rejected
+                    else if (data.status !== 'misuse') {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        // Generic update message
+                        showCard('resolvedCard');
+                        document.querySelector('#resolvedCard h3').innerText = "Status Updated";
+                        document.querySelector('#resolvedCard p').innerText = "Admin has updated the parking status.";
+                        attemptClose();
+                    }
+
+                } catch (e) {
+                    console.error("[Mobile] Poll error", e);
+                }
+            }, 1500); // Poll every 1.5 seconds
+        }
+
+        function showCard(id) {
+            document.querySelectorAll('.verify-card').forEach(c => c.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+        }
+    </script>
+
+</body>
+
+</html>
