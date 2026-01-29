@@ -412,6 +412,8 @@
                         <div class="slot-id">{{ slot.slot_id }}</div>
                         {% if slot.reg_num %}
                         <div class="reg-num">{{ slot.reg_num }}</div>
+                        {% elif slot.temp_reg_num %}
+                        <div class="reg-num text-warning">{{ slot.temp_reg_num }}</div>
                         {% else %}
                         <div class="small text-muted opacity-50">{{ slot.size_type|capitalize }}</div>
                         {% endif %}
