@@ -26,7 +26,7 @@ def get_slot_status(slot_id):
         slot_num = int(slot_num_str)
         
         url = f"https://parking-demo-2.onrender.com/api/slot{slot_num}"
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=2)
         
         if response.status_code == 200:
             data = response.json()
