@@ -172,23 +172,28 @@ def init_db():
                     )''')
 
         
-        # Initialize slots if empty
+        # Initialize slots if empty or count mismatch (Re-configuration)
         c.execute("SELECT count(*) FROM slots")
-        if c.fetchone()[0] == 0:
-            # Generate 10 Slots (Slot1 - Slot10)
+        count = c.fetchone()[0]
+        
+        target_count = 30
+        if count != target_count:
+            print(f"Migration: Slot count mismatch ({count} vs {target_count}). Re-initializing slots...")
+            c.execute("DELETE FROM slots") # Reset slots table
+            
             slots_data = []
             
-            # 4 Small Slots (Slot1 - Slot4)
-            slots_data.extend([(f'Slot{i}', 'small') for i in range(1, 5)])
+            # 10 Small (Mini) Slots (Slot1 - Slot10)
+            slots_data.extend([(f'Slot{i}', 'small') for i in range(1, 11)])
             
-            # 4 Medium Slots (Slot5 - Slot8)
-            slots_data.extend([(f'Slot{i}', 'medium') for i in range(5, 9)])
+            # 10 Medium (Sedan) Slots (Slot11 - Slot20)
+            slots_data.extend([(f'Slot{i}', 'medium') for i in range(11, 21)])
             
-            # 2 Large Slots (Slot9 - Slot10)
-            slots_data.extend([(f'Slot{i}', 'large') for i in range(9, 11)])
+            # 10 Large (SUV) Slots (Slot21 - Slot30)
+            slots_data.extend([(f'Slot{i}', 'large') for i in range(21, 31)])
 
             c.executemany("INSERT INTO slots (slot_id, size_type) VALUES (?, ?)", slots_data)
-            print("Initialized 10 Slots (Slot1 - Slot10).")
+            print("Initialized 30 Slots (10 Small, 10 Medium, 10 Large).")
 
 # If on Render, initialize DB immediately when this module is imported by Gunicorn
 if IS_RENDER:
