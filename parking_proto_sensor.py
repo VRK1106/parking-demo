@@ -152,9 +152,16 @@ def init_db():
                         size_type TEXT,
                         status TEXT DEFAULT 'free',
                         reg_num TEXT,
+                        temp_reg_num TEXT,
                         entry_time TEXT,
                         is_verified INTEGER DEFAULT 0
                     )''')
+        
+        # MIGRATION: Ensure temp_reg_num exists (for existing DBs)
+        try:
+            c.execute("ALTER TABLE slots ADD COLUMN temp_reg_num TEXT")
+        except sqlite3.OperationalError:
+            pass # Column likely exists
         # Create logs table for analytics
         c.execute('''CREATE TABLE IF NOT EXISTS logs (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -401,7 +408,6 @@ def process_verification():
                      assigned_slot = assigned_row[0]
                      
                      # Update DB to show potential issues
-                     # We can mark this slot as 'misuse' temporarily too
                      c.execute("UPDATE slots SET status='misuse', temp_reg_num=? WHERE slot_id=?", (user_reg, slot_id))
                      conn.commit()
                      
@@ -411,12 +417,11 @@ def process_verification():
                         "message": f"You are assigned to {assigned_slot}"
                      })
                  else:
-                     # No reservation elsewhere -> Allow "Walk-in" Parking?
-                     # Ideally yes, let's Verify/Occupy this slot for them.
-                     c.execute("UPDATE slots SET status='occupied', reg_num=?, is_verified=1, entry_time=? WHERE slot_id=?", 
-                               (user_reg, datetime.datetime.now().isoformat(), slot_id))
-                     conn.commit()
-                     return jsonify({"status": "verified"})
+                     # No reservation found anywhere -> Vehicle NOT in system (Didn't use Entry Gate)
+                     return jsonify({
+                         "status": "error", 
+                         "message": "Vehicle not found in system. Please use Entry Gate."
+                     })
                  
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
