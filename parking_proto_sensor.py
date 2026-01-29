@@ -342,62 +342,60 @@ def anpr():
 @app.route('/scan/<slot_id>')
 def scan_slot(slot_id):
     """
-    Frictionless Verification Logic (from DEMO).
-    Scanning the QR code directly verifies the slot.
+    Render Vehicle Verification Page.
     """
+    return render_template('verify.html', slot_id=slot_id)
+
+@app.route('/process_verification', methods=['POST'])
+def process_verification():
     try:
+        slot_id = request.form.get('slot_id')
+        user_reg = request.form.get('reg_num').replace(" ", "").upper()
+        
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            
-            # Check if status exists
-            print(f"[DEBUG] Scanning Slot: {slot_id}")
             c.execute("SELECT status, reg_num FROM slots WHERE slot_id = ?", (slot_id,))
             row = c.fetchone()
             
             if not row:
-                print(f"[DEBUG] Slot {slot_id} NOT FOUND in DB")
-                return f"<h1>Error: Slot {slot_id} not found</h1>", 404
+                return jsonify({"status": "error", "message": "Slot not found"}), 404
+                
+            db_status, db_reg = row
             
-            status, reg_num = row
-            print(f"[DEBUG] Current DB Status: '{status}'")
+            # Logic: Match User Input (user_reg) with DB (db_reg)
             
-            # --- EXTERNAL SENSOR CHECK ---
-            sensor_status = external_sensors.get_slot_status(slot_id)
-            print(f"[DEBUG] External Sensor Status: '{sensor_status}'")
-            
-            # MODIFIED LOGIC: Strict State Transitions
-            # 1. RESERVED -> OCCUPIED
-            if status == 'reserved':
-                 print(f"[DEBUG] Transitioning {slot_id} from RESERVED to OCCUPIED")
-                 c.execute("UPDATE slots SET is_verified = 1, status = 'occupied' WHERE slot_id = ?", (slot_id,))
-                 conn.commit()
+            # 1. Correct Match
+            if db_reg and db_reg == user_reg:
+                # If reserved, mark as occupied (Check-in)
+                if db_status == 'reserved':
+                     c.execute("UPDATE slots SET status='occupied', is_verified=1 WHERE slot_id=?", (slot_id,))
+                     conn.commit()
+                # If already occupied, just confirm
+                return jsonify({"status": "verified"})
+                
+            # 2. Misuse (Slot occupied/reserved by SOMEONE ELSE)
+            if db_reg and db_reg != user_reg:
+                # Calculate where they SHOULD be?
+                c.execute("SELECT slot_id FROM slots WHERE reg_num = ?", (user_reg,))
+                assigned_row = c.fetchone()
+                assigned_slot = assigned_row[0] if assigned_row else "NONE"
+                
+                return jsonify({
+                    "status": "misuse", 
+                    "assigned_slot": assigned_slot,
+                    "message": f"This slot is reserved for {db_reg}"
+                })
+                
+            # 3. Slot is Free (Unexpected if they are parking there)
+            if db_status == 'free':
+                 # Maybe allow them to take it? 
+                 # For now, let's treat it as "Not assigned here" or Allow logic?
+                 # "earlier method" implies verifying an assignment.
+                 # Let's return error saying "No reservation found".
+                 return jsonify({"status": "error", "message": "No reservation found for this slot."})
                  
-                 # Verify Update
-                 c.execute("SELECT status FROM slots WHERE slot_id=?", (slot_id,))
-                 new_status = c.fetchone()[0]
-                 print(f"[DEBUG] New Status in DB: '{new_status}'")
-                 
-                 return f"<h1>✅ Slot {slot_id} Verified Successfully! Status changed to Occupied.</h1>"
-
-            # 2. OCCUPIED -> ALREADY OCCUPIED
-            if status == 'occupied':
-                 print(f"[DEBUG] Slot {slot_id} is already OCCUPIED")
-                 return f"<h1>ℹ️ Slot {slot_id} is Already Occupied.</h1>"
-            
-            # 3. SENSOR CHECK (Only if 'free')
-            if sensor_status == 'available':  
-                print(f"[DEBUG] Mismatch: DB=free, Sensor=available -> Please Park")
-                return f"<h1>⚠️ Alert: Slot {slot_id} appears empty! Please park correctly.</h1>"
-
-            # If DB is free but sensor is occupied (Unexpected)
-            print(f"[DEBUG] DB=free, Sensor=occupied -> Force Occupied")
-            c.execute("UPDATE slots SET is_verified = 1, status = 'occupied' WHERE slot_id = ?", (slot_id,))
-            conn.commit()
-            
-            return f"<h1>✅ Slot {slot_id} Verified Successfully! (Sensor Detected)</h1>"
-            
     except Exception as e:
-        return f"<h1>Error: {str(e)}</h1>", 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/resolve_misuse', methods=['POST'])
 def resolve_misuse():
