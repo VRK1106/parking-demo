@@ -10,7 +10,7 @@ import threading
 import time
 import make_qrs # Import the QR generator module
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-import external_sensors # Import external sensor module
+from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
 
 # --- Project Imports ---
 from agent import ParkingAgent
@@ -553,17 +553,6 @@ def get_slot_status(slot_id):
         if row:
             return jsonify({"status": row[0], "reg_num": row[1]})
         return jsonify({"error": "Slot not found"}), 404
-
-@app.route('/api/sensor/<slot_id>')
-def check_sensor_status(slot_id):
-    """
-    Bridge to external_sensors.py to check physical status.
-    """
-    try:
-        status = external_sensors.get_slot_status(slot_id)
-        return jsonify({"slot_id": slot_id, "sensor_status": status})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/qr/<slot_id>')
 def qr_redirect(slot_id):
