@@ -10,7 +10,10 @@ import threading
 import time
 import make_qrs # Import the QR generator module
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
+from dotenv import load_dotenv
+
+# Load Env Vars explicitly
+load_dotenv()
 
 # --- Project Imports ---
 from agent import ParkingAgent
@@ -567,18 +570,35 @@ def qr_redirect(slot_id):
     # But usually this runs on Render.
     
     # 1. Try to get URL from MongoDB
+    # 1. Try to get URL from MongoDB
     redirect_base = None
-    if MONGODB_URI:
+    
+    # Retrieve explicitly from os.environ to be safe
+    mongo_uri = os.environ.get("MONGODB_URI")
+    app.logger.info(f"[DEBUG] QR Scan: MONGODB_URI Present? {bool(mongo_uri)}")
+
+    if mongo_uri:
         try:
             from pymongo import MongoClient
-            client = MongoClient(MONGODB_URI)
+            # Create client with shorter timeout for redirection speed
+            client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
             db = client[CLUSTER_NAME]
             collection = db[COLLECTION_NAME]
+            
+            # Debug: Print what we are looking for
+            app.logger.info(f"[DEBUG] QR Scan: Looking for config_id='main_tunnel' in {CLUSTER_NAME}.{COLLECTION_NAME}")
+            
             doc = collection.find_one({"config_id": "main_tunnel"})
-            if doc and "tunnel_url" in doc:
-                redirect_base = doc["tunnel_url"]
+            if doc:
+                app.logger.info(f"[DEBUG] QR Scan: Found Doc! Keys: {list(doc.keys())}")
+                if "tunnel_url" in doc:
+                    redirect_base = doc["tunnel_url"]
+                    app.logger.info(f"[DEBUG] QR Scan: Resolved URL -> {redirect_base}")
+            else:
+                app.logger.info(f"[DEBUG] QR Scan: Document 'main_tunnel' NOT FOUND in DB.")
+                
         except Exception as e:
-            print(f"MongoDB Lookup Failed: {e}")
+            app.logger.error(f"MongoDB Lookup Failed: {e}")
             
     # 2. Fallback if DB fails or not set (e.g. testing locally)
     if not redirect_base:
