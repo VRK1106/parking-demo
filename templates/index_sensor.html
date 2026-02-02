@@ -733,24 +733,8 @@
             } catch (e) { showToast('Error', 'Network Error', 'error'); }
         }
 
-        async function checkSensorAndResolve(slotId, regNum) {
-            showToast('Checking Sensor...', `Pinging external sensor for ${slotId}`, 'warn');
-            try {
-                const res = await fetch(`/api/sensor/${slotId}`);
-                const data = await res.json();
+        // Async function checkSensorAndResolve removed as per user request (No External API)
 
-                if (data.sensor_status === 'available') {
-                    // Confirmed Empty!
-                    if (confirm(`Sensor reports ${slotId} is FREE! Clear the alert?`)) {
-                        resolveMisuseAction(slotId, regNum, 'resolved');
-                    }
-                } else if (data.sensor_status === 'unavailable') {
-                    showToast('Still Occupied', `Sensor reports vehicle is still present.`, 'error');
-                } else {
-                    showToast('Sensor Error', `Could not read sensor: ${data.sensor_status}`, 'error');
-                }
-            } catch (e) { showToast('Error', 'Sensor API Unreachable', 'error'); }
-        }
 
         // Update stats every 1 second
         setInterval(updateUtilization, 1000);
