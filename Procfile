@@ -1,1 +1,1 @@
-web: gunicorn parking_proto_sensor:app
+web: gunicorn gateway:app
