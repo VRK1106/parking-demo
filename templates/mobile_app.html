@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>OptiSlot</title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        /* Minimalist Reset */
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Utils */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-minimal {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #333;
+            color: white;
+            border-radius: 0;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-minimal:focus {
+            border-bottom-color: #fff;
+        }
+
+        .btn-action {
+            background: #fff;
+            color: #000;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: transform 0.1s;
+        }
+
+        .btn-action:active {
+            transform: scale(0.98);
+        }
+
+        /* Navigation Animation */
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            background: #3b82f6;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #3b82f6;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: all 0.5s ease-out;
+        }
+
+        .nav-pulse {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* Hide Scrollbar */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col justify-between">
+
+    <!-- TOP BAR -->
+    <div class="px-6 py-4 flex justify-between items-center z-10">
+        <div class="text-lg font-bold tracking-tight">OptiSlot</div>
+        <div class="text-[10px] font-mono opacity-50 flex items-center gap-1">
+            <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div> ONLINE
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="content-area" class="flex-1 px-6 pb-24 overflow-y-auto relative">
+
+        <!-- VIEW: WELCOME (Initial Mandatory Screen) -->
+        <div id="view-welcome" class="view flex flex-col items-center justify-center h-full text-center">
+            <div
+                class="mb-8 p-6 bg-gradient-to-br from-neutral-800 to-black rounded-full border border-neutral-700 shadow-2xl">
+                <i class="fa-solid fa-car-side text-5xl text-blue-500"></i>
+            </div>
+            <h1 class="text-4xl font-light mb-2">Welcome to</h1>
+            <h1 class="text-4xl font-bold mb-8 tracking-tighter">OptiSlot</h1>
+
+            <div class="w-full max-w-xs">
+                <p class="text-xs uppercase tracking-widest opacity-50 mb-2">Vehicle Registration</p>
+                <input type="text" id="master-plate" placeholder="MH 12 AB 1234"
+                    class="input-minimal w-full text-2xl py-3 uppercase font-mono tracking-widest text-center mb-8 border-b-2 border-neutral-700 focus:border-blue-500 transition-colors bg-transparent text-white outline-none">
+
+                <button onclick="loginUser()"
+                    class="btn-action w-full py-4 text-sm uppercase tracking-wide bg-blue-600 border-none text-white shadow-lg shadow-blue-900/50">
+                    Start Session
+                </button>
+            </div>
+            <p class="mt-8 text-[10px] opacity-30 font-mono">SECURE • EFFICIENT • FAST</p>
+        </div>
+
+        <!-- VIEW: HOME / NAVIGATE (Unlocked) -->
+        <div id="view-home" class="view hidden">
+            <div class="mt-8 mb-12">
+                <h1 class="text-3xl font-light mb-1">Navigation</h1>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-3xl font-bold">Session Active</h1>
+                    <div class="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-[10px] rounded border border-blue-800 font-mono"
+                        id="display-plate">--</div>
+                </div>
+            </div>
+
+            <!-- Minimal Map Container -->
+            <div id="nav-container" class="opacity-0 transition-opacity duration-500">
+                <div class="flex justify-between items-end mb-4">
+                    <div>
+                        <div class="text-xs opacity-50 uppercase tracking-widest">Target Slot</div>
+                        <div id="nav-slot-id" class="text-4xl font-bold">--</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs opacity-50 uppercase tracking-widest">Distance</div>
+                        <div class="text-xl font-mono">150m</div>
+                    </div>
+                </div>
+
+                <!-- Professional Map Visual -->
+                <div class="relative w-full h-64 bg-[#111] rounded-2xl overflow-hidden border border-[#222]">
+                    <div class="absolute inset-0 opacity-20"
+                        style="background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;">
+                    </div>
+                    <canvas id="mapCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                </div>
+
+                <p id="nav-status-msg" class="mt-4 text-xs opacity-50 text-center">Searching for your assigned slot...
+                </p>
+            </div>
+
+            <button onclick="logout()"
+                class="mt-12 w-full py-3 text-xs opacity-30 hover:opacity-100 transition uppercase tracking-widest border border-dashed border-neutral-700 rounded-xl">
+                Change Vehicle
+            </button>
+        </div>
+
+        <!-- TAB: PIN (SCANNER) -->
+        <div id="view-pin" class="view hidden">
+            <div class="mt-8 mb-6">
+                <h1 class="text-2xl font-bold">Confirm Location</h1>
+                <p class="text-sm opacity-50">Scan the QR code at your parking slot.</p>
+            </div>
+
+            <div id="scanner-container"
+                class="w-full aspect-square bg-[#111] rounded-3xl overflow-hidden relative border border-[#333]">
+                <div id="reader" class="w-full h-full object-cover"></div>
+                <div class="absolute inset-0 border-[40px] border-black/50 z-10 pointer-events-none"></div>
+                <div class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                    <div class="w-48 h-48 border-2 border-white/20 rounded-xl relative">
+                        <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-white"></div>
+                        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-white"></div>
+                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-white"></div>
+                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white"></div>
+                    </div>
+                </div>
+                <button id="btn-scan" onclick="startScanner()"
+                    class="absolute inset-0 flex items-center justify-center bg-[#111] z-30">
+                    <div class="text-center">
+                        <i class="fa-solid fa-expand text-3xl mb-2"></i>
+                        <div class="text-sm font-bold">Tap to Scan</div>
+                    </div>
+                </button>
+            </div>
+
+            <div id="pin-success" class="hidden mt-6 text-center">
+                <div
+                    class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-black text-2xl">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div class="text-xl font-bold">Parked at <span id="pin-slot" class="font-mono">--</span></div>
+            </div>
+        </div>
+
+        <!-- TAB: LOCATE -->
+        <div id="view-locate" class="view hidden">
+            <div class="mt-8 mb-6">
+                <h1 class="text-2xl font-bold">Find Vehicle</h1>
+                <p class="text-sm opacity-50">Locating: <span class="font-mono text-white"
+                        id="locate-plate-disp">--</span></p>
+            </div>
+
+            <div id="locate-result" class="hidden">
+                <!-- SUCCESS STATE -->
+                <div id="loc-success" class="hidden">
+                    <div
+                        class="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-2xl p-6 border border-neutral-700 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-car text-8xl"></i>
+                        </div>
+
+                        <div class="text-sm opacity-50 uppercase tracking-widest mb-1">Your Location</div>
+                        <div class="text-5xl font-bold mb-4 font-mono" id="loc-slot">A-12</div>
+
+                        <div class="flex gap-4 text-xs opacity-70">
+                            <div><i class="fa-regular fa-clock"></i> <span id="loc-time">10:45 AM</span></div>
+                            <div><i class="fa-solid fa-layer-group"></i> Zone A</div>
+                        </div>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button onclick="showWalkingSimulation()"
+                            class="text-sm opacity-50 hover:opacity-100 transition underline">Get Walking
+                            Directions</button>
+                    </div>
+                </div>
+
+                <!-- PENDING STATE -->
+                <div id="loc-pending" class="hidden text-center py-12 opacity-50">
+                    <i class="fa-solid fa-road text-4xl mb-4"></i>
+                    <p class="text-sm">Vehicle is in Transit directly to the slot.<br>Please Pin Location after parking.
+                    </p>
+                </div>
+            </div>
+
+            <button onclick="locateVehicle()"
+                class="mt-6 btn-action w-full py-4 text-sm uppercase tracking-wide bg-neutral-800 text-white border border-neutral-700">
+                Refresh Status
+            </button>
+        </div>
+
+    </div>
+
+    <!-- BOTTOM NAV (Top-Hidden) -->
+    <div id="bottom-nav"
+        class="fixed bottom-6 left-6 right-6 h-16 glass rounded-full flex items-center justify-evenly z-50 shadow-2xl transition-transform duration-500 translate-y-32">
+        <button onclick="tab('home')" class="nav-btn active opacity-100 transition-opacity p-4" data-target="home">
+            <i class="fa-solid fa-location-arrow text-xl"></i>
+        </button>
+        <button onclick="tab('pin')" class="nav-btn opacity-40 transition-opacity p-4" data-target="pin">
+            <i class="fa-solid fa-qrcode text-xl"></i>
+        </button>
+        <button onclick="tab('locate')" class="nav-btn opacity-40 transition-opacity p-4 hidden" data-target="locate"
+            id="nav-locate">
+            <i class="fa-solid fa-car text-xl"></i>
+        </button>
+    </div>
+
+    <script>
+        // Global State
+        let CURRENT_PLATE = null;
+
+        // --- Session Management ---
+        async function loginUser() {
+            const input = document.getElementById('master-plate');
+            const plate = input.value.trim().toUpperCase().replace(/\s/g, '');
+
+            if (plate.length < 4) return alert("Please enter a valid Registration Number");
+
+            CURRENT_PLATE = plate;
+
+            // UI Updates
+            document.getElementById('display-plate').innerText = formatPlate(plate);
+            // document.getElementById('locate-plate-disp').innerText = formatPlate(plate); // Triggered in locateVehicle now
+
+            // Transition
+            document.getElementById('view-welcome').classList.add('hidden');
+            document.getElementById('view-home').classList.remove('hidden');
+            document.getElementById('bottom-nav').classList.remove('translate-y-32');
+
+            // Check Status to decide UI
+            checkStatusAndRoute();
+        }
+
+        async function checkStatusAndRoute() {
+            try {
+                const res = await fetch(`/api/find_vehicle/${CURRENT_PLATE}`);
+                const data = await res.json();
+
+                if (data.found) {
+                    if (data.is_verified) {
+                        // User is already parked. Unlock Locate.
+                        document.getElementById('nav-locate').classList.remove('hidden');
+                        // Auto-switch to Locate tab maybe? Or just let them navigate.
+                        // Let's stay on Home but show the tab.
+                    } else {
+                        // User is In-Transit. Hide Locate.
+                        document.getElementById('nav-locate').classList.add('hidden');
+                        startNavigation(data); // Pass data to save a call
+                    }
+                } else {
+                    // Not entered yet
+                    document.getElementById('nav-locate').classList.add('hidden');
+                    startNavigation(data);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        function formatPlate(p) {
+            // Simple formatter: MH12AB1234 -> MH 12 AB 1234
+            return p;
+        }
+
+        // --- UI Logic ---
+        function tab(name) {
+            document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + name).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.replace('opacity-100', 'opacity-40'));
+            document.querySelector(`[data-target="${name}"]`).classList.replace('opacity-40', 'opacity-100');
+
+            if (name !== 'pin' && scanner) stopScanner();
+            if (name === 'locate') locateVehicle();
+        }
+
+        // --- Navigation Logic ---
+        async function startNavigation(cachedData = null) {
+            if (!CURRENT_PLATE) return;
+
+            // Use cached data if provided, otherwise fetch
+            let data = cachedData;
+            if (!data) {
+                try {
+                    const res = await fetch(`/api/find_vehicle/${CURRENT_PLATE}`);
+                    data = await res.json();
+                } catch (e) { return; }
+            }
+
+            const cont = document.getElementById('nav-container');
+            cont.classList.remove('opacity-0');
+
+            if (data.found && !data.is_verified) {
+                document.getElementById('nav-slot-id').innerText = data.slot_id;
+                document.getElementById('nav-status-msg').innerText = "Follow the path to your zone.";
+                initProfessionalMap(data.slot_id);
+            } else if (data.found && data.is_verified) {
+                document.getElementById('nav-slot-id').innerText = "PARKED";
+                document.getElementById('nav-status-msg').innerText = "Vehicle is verified and parked.";
+                // Show a static map or clear it
+            } else {
+                document.getElementById('nav-slot-id').innerText = "--";
+                document.getElementById('nav-status-msg').innerText = "Vehicle has not entered the gate yet.";
+            }
+        }
+
+        // --- Professional Map (Unchanged Visuals) ---
+        function initProfessionalMap(targetId) {
+            const canvas = document.getElementById('mapCanvas');
+            // ... (Keep existing map code if possible, or simple redraw)
+            // usage: I will use the previous map code.
+            drawMap(canvas);
+        }
+
+        function drawMap(canvas) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            const path = [];
+            const startX = 20, startY = canvas.height - 20;
+            const endX = canvas.width - 40, endY = 40;
+
+            path.push({ x: startX, y: startY });
+            path.push({ x: startX, y: canvas.height / 2 });
+            path.push({ x: endX, y: canvas.height / 2 });
+            path.push({ x: endX, y: endY });
+
+            let progress = 0;
+            function animate() {
+                if (!document.getElementById('view-home').classList.contains('hidden')) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.beginPath(); ctx.strokeStyle = '#333'; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                    ctx.moveTo(path[0].x, path[0].y); for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y); ctx.stroke();
+
+                    ctx.beginPath(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([10, 10]);
+                    ctx.moveTo(path[0].x, path[0].y); for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y); ctx.stroke(); ctx.setLineDash([]);
+
+                    const pos = getPosOnPath(progress, path);
+                    const pulseSize = 10 + Math.sin(Date.now() / 200) * 4;
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.3)'; ctx.beginPath(); ctx.arc(pos.x, pos.y, pulseSize, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2); ctx.fill();
+
+                    progress += 0.005; if (progress > 1) progress = 0;
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function getPosOnPath(t, path) {
+            const totalSegments = path.length - 1;
+            const segmentT = t * totalSegments;
+            const index = Math.floor(segmentT);
+            const subT = segmentT - index;
+            if (index >= totalSegments) return path[totalSegments];
+            const p1 = path[index]; const p2 = path[index + 1];
+            return { x: p1.x + (p2.x - p1.x) * subT, y: p1.y + (p2.y - p1.y) * subT };
+        }
+
+        // --- Scanner ---
+        let scanner;
+        function startScanner() {
+            document.getElementById('btn-scan').classList.add('hidden');
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+                (decodedText) => { stopScanner(); processPin(decodedText); },
+                (err) => { }
+            );
+        }
+        function stopScanner() {
+            if (scanner) scanner.stop().then(() => {
+                document.getElementById('reader').innerHTML = '';
+                document.getElementById('btn-scan').classList.remove('hidden');
+            });
+        }
+
+        async function processPin(text) {
+            let slotId = text;
+            if (text.includes('/scan/')) slotId = text.split('/scan/')[1];
+            else if (text.includes('/qr/')) slotId = text.split('/qr/')[1];
+            slotId = slotId.split('?')[0].split('/')[0].trim();
+
+            if (!CURRENT_PLATE) return alert("Session Error. Please Relogin.");
+
+            try {
+                const res = await fetch('/process_verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slot_id: slotId, actual_reg_num: CURRENT_PLATE, action: 'verify' })
+                });
+
+                if (res.ok) {
+                    document.getElementById('pin-success').classList.remove('hidden');
+                    document.getElementById('pin-slot').innerText = slotId;
+
+                    // UNLOCK LOCATE TAB ON SUCCESS
+                    document.getElementById('nav-locate').classList.remove('hidden');
+                    alert("Location Verified! 'Find My Car' is now available.");
+
+                } else {
+                    alert("Verification Failed");
+                }
+            } catch (e) { alert("Error"); }
+        }
+
+        // --- Locate ---
+        async function locateVehicle() {
+            if (!CURRENT_PLATE) return;
+
+            const res = await fetch(`/api/find_vehicle/${CURRENT_PLATE}`);
+            const data = await res.json();
+
+            document.getElementById('locate-result').classList.remove('hidden');
+            document.getElementById('loc-success').classList.add('hidden');
+            document.getElementById('loc-pending').classList.add('hidden');
+            document.getElementById('locate-plate-disp').innerText = CURRENT_PLATE;
+
+            if (data.found) {
+                if (data.is_verified) {
+                    document.getElementById('loc-success').classList.remove('hidden');
+                    document.getElementById('loc-slot').innerText = data.slot_id;
+                    document.getElementById('loc-time').innerText = data.entry_time.split("T")[1].substring(0, 5);
+                } else {
+                    document.getElementById('loc-pending').classList.remove('hidden');
+                }
+            }
+        }
+
+        function showWalkingSimulation() {
+            console.log("Starting Simulation...");
+            // alert("Starting Simulation..."); // Toggle this if console is hard to see 
+
+            // Simple overlay simulation
+            const overlay = document.createElement('div');
+            overlay.className = "fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center p-6 text-center";
+            overlay.innerHTML = `
+                <div class="mb-6 animate-pulse">
+                    <i class="fa-solid fa-person-walking text-6xl text-green-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-4">Navigating to Vehicle...</h2>
+                <div class="w-full h-1 bg-neutral-800 rounded-full mb-2 overflow-hidden">
+                    <div class="h-full bg-green-500 animate-[width_3s_ease-out_forwards]" style="width: 0%"></div>
+                </div>
+                <p class="text-sm opacity-50 font-mono">Calculating Path...</p>
+                <button onclick="this.parentElement.remove()" class="mt-8 px-6 py-2 border border-white/20 rounded-full text-xs">Cancel</button>
+            `;
+            document.body.appendChild(overlay);
+
+            // Auto close/success
+            setTimeout(() => {
+                overlay.innerHTML = `
+                    <div class="mb-6">
+                        <i class="fa-solid fa-flag-checkered text-6xl text-white"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-2">You have arrived!</h2>
+                    <p class="text-sm opacity-50">Vehicle is directly ahead.</p>
+                    <button onclick="this.parentElement.remove()" class="mt-8 px-8 py-3 bg-white text-black rounded-full font-bold">Done</button>
+                `;
+            }, 3000);
+        }
+
+        // Add Animation Keyframes safely
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes width { to { width: 100%; } }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
+```
