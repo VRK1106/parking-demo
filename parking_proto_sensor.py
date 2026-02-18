@@ -607,8 +607,13 @@ def qr_redirect(slot_id):
         return "<h1>Error: Could not determine parking system address.</h1><p>System might be offline or MongoDB not configured.</p>", 503
 
     # 3. Perform Redirect
-    full_url = f"{redirect_base}/scan/{slot_id}"
-    print(f"Redirecting QR scan for {slot_id} to: {full_url}")
+    if slot_id.lower() == 'app':
+        full_url = f"{redirect_base}/mobile"
+        print(f"Redirecting to Mobile App: {full_url}")
+    else:
+        full_url = f"{redirect_base}/scan/{slot_id}"
+        print(f"Redirecting QR scan for {slot_id} to: {full_url}")
+    
     return redirect(full_url)
 
 
